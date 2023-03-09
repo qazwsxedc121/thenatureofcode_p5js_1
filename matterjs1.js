@@ -1,14 +1,16 @@
 "use strict";
 var Engine = Matter.Engine, Runner = Matter.Runner, Bodies = Matter.Bodies, Composite = Matter.Composite;
-var boxA;
-var boxB;
 var ground;
 var engine;
 var bodies = [];
-var poly_decomp = decomp;
 var matterRenderDebug = true;
+// poly decomp setup
+var poly_decomp = decomp;
 Matter.Common.setDecomp(poly_decomp);
 function setup() {
+    // p5js part
+    createCanvas(800, 600);
+    // matterjs part
     engine = Engine.create();
     if (matterRenderDebug) {
         var render = Matter.Render.create({
@@ -17,37 +19,52 @@ function setup() {
         });
         Matter.Render.run(render);
     }
-    createCanvas(800, 600);
-    boxA = Bodies.rectangle(400, 200, 80, 80);
-    boxB = Bodies.rectangle(450, 50, 80, 80);
+    // setup ground and bodies
     ground = Bodies.rectangle(400, 610, 810, 60, { isStatic: true });
-    Composite.add(engine.world, [boxA, boxB, ground]);
-    createSinMatterBody();
+    bodies.push(ground);
+    //createSinMatterBody()
+    Composite.add(engine.world, [ground,]);
+    // setup matterjs runner
     var runner = Runner.create();
     Runner.run(runner, engine);
 }
 function drawMatterBody(body) {
     // does not support concave shapes
-    noFill();
-    var vertices = body.vertices;
-    beginShape();
-    for (var i = 0; i < vertices.length; i++) {
-        vertex(vertices[i].x, vertices[i].y);
+    fill(127);
+    let len = body.parts.length;
+    if (len == 1) {
+        var vertices = body.vertices;
+        beginShape();
+        for (var i = 0; i < vertices.length; i++) {
+            vertex(vertices[i].x, vertices[i].y);
+        }
+        endShape(CLOSE);
     }
-    endShape(CLOSE);
+    else // if a body has more than one part, it is a compound body, maybe concave
+     {
+        for (let j = 1; j < len; j++) {
+            var vertices = body.parts[j].vertices;
+            beginShape();
+            for (var i = 0; i < vertices.length; i++) {
+                vertex(vertices[i].x, vertices[i].y);
+            }
+            endShape(CLOSE);
+        }
+    }
 }
 function createMatterBody(x, y, w, h) {
     let body = Bodies.rectangle(x, y, w, h);
     bodies.push(body);
     Composite.add(engine.world, [body]);
 }
+// a sin wave shape
 function createSinMatterBody() {
     let vertexes = [];
-    for (let i = 0; i < 600; i += 10) {
+    for (let i = 0; i < 800; i += 10) {
         let vertex = { x: i, y: -sin(i / 100) * 100 + 200 };
         vertexes.push(vertex);
     }
-    vertexes.push({ x: 600, y: 400 });
+    vertexes.push({ x: 800, y: 400 });
     vertexes.push({ x: 0, y: 400 });
     let body = Bodies.fromVertices(400, 500, vertexes, {
         isStatic: true,
@@ -55,15 +72,26 @@ function createSinMatterBody() {
     bodies.push(body);
     Composite.add(engine.world, [body]);
 }
+// a body composed by a stick and a circle
+function createStickMatterBody(position) {
+    let parts = Array();
+    let circlePart = Bodies.circle(0, -50, 30, { isStatic: false });
+    let stickPart = Bodies.rectangle(0, 0, 20, 40, { isStatic: false });
+    parts = [circlePart, stickPart];
+    let body = Matter.Body.create({ parts: parts });
+    // must set position after create, because when creating with parts,
+    // the position should set to (0, 0), to ensure part position is correct
+    Matter.Body.setPosition(body, position);
+    bodies.push(body);
+    Composite.add(engine.world, [body]);
+}
 function draw() {
     background(200);
-    drawMatterBody(boxA);
-    drawMatterBody(boxB);
-    drawMatterBody(ground);
     for (let body of bodies) {
         drawMatterBody(body);
     }
 }
 function mousePressed() {
-    createMatterBody(mouseX, mouseY, 20, 20);
+    //createMatterBody(mouseX, mouseY, 20, 20);
+    createStickMatterBody({ x: mouseX, y: mouseY });
 }
