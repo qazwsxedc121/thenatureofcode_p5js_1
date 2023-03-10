@@ -13,6 +13,8 @@ var matterRenderDebug = true;
 var poly_decomp = decomp;
 Matter.Common.setDecomp(poly_decomp);
 
+var fan : Matter.Body;
+
 function setup() {
     // p5js part
     createCanvas(800, 600)
@@ -32,6 +34,7 @@ function setup() {
     bodies.push(ground);
     //createSinMatterBody()
     createConstraintBridge({x: 100, y: 100}, {x: 700, y: 100}, 20);
+    fan = createWindMill({x: 400, y: 470});
 
     Composite.add(engine.world, [ground,]);
 
@@ -39,7 +42,12 @@ function setup() {
     var runner = Runner.create();
     Runner.run(runner, engine);
 
+    Matter.Events.on(engine, 'beforeUpdate', function(event) {
+        // apply force to fan
+        Matter.Body.rotate(fan, 0.01);
+    });
 }
+
 
 function drawMatterBody(body: Matter.Body) {
     // does not support concave shapes
@@ -176,6 +184,30 @@ function createConstraintBridge(pointA: Matter.Vector, pointB: Matter.Vector, ra
     Composite.add(engine.world, circles);
     Composite.add(engine.world, bridge_constraints);
 
+}
+
+function createWindMill(position: Matter.Vector){
+    let parts = Array<Matter.Body>();
+    let fanPart = Bodies.rectangle(0, 0,  200, 20, {isStatic: true, collisionFilter: {group: -1}});
+    let stickPart = Bodies.rectangle(0, 50, 20, 100, {isStatic: true, collisionFilter: {group: -1}});
+    // must set position after create, because when creating with parts,
+    // the position should set to (0, 0), to ensure part position is correct
+    Matter.Body.setPosition(fanPart, position);
+    Matter.Body.setPosition(stickPart, {x: position.x, y: position.y + 50});
+    let constraintPivot = Matter.Constraint.create({
+        bodyA: fanPart,
+        pointA: {x: 0, y: 0},
+        bodyB: stickPart,
+        pointB: {x: 0, y: -45},
+        length: 0,
+    });
+
+    bodies.push(fanPart);
+    bodies.push(stickPart);
+    constraints.push(constraintPivot);
+    Composite.add(engine.world, [constraintPivot]);
+    Composite.add(engine.world, [fanPart, stickPart]);
+    return fanPart;
 }
 
 
